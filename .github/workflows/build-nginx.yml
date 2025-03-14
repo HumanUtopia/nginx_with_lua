@@ -45,21 +45,21 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential libpcre3-dev zlib1g-dev libssl-dev wget git
 
-          - name: Download and compile PCRE
-          if: steps.cache-deps.outputs.cache-hit != 'true'
-          run: |
-            cd /tmp
-            wget https://sourceforge.net/projects/pcre/files/pcre/${PCRE_VERSION}/pcre-${PCRE_VERSION}.tar.gz
-            tar xzf pcre-${PCRE_VERSION}.tar.gz
-            cd pcre-${PCRE_VERSION}
-            ./configure --prefix=/usr/local \
-                       --enable-jit \
-                       --enable-utf8 \
-                       --enable-unicode-properties \
-                       --enable-static \
-                       --disable-shared
-            make -j$(nproc)
-            sudo make install
+      - name: Download and compile PCRE
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          cd /tmp
+          wget https://sourceforge.net/projects/pcre/files/pcre/${PCRE_VERSION}/pcre-${PCRE_VERSION}.tar.gz
+          tar xzf pcre-${PCRE_VERSION}.tar.gz
+          cd pcre-${PCRE_VERSION}
+          ./configure --prefix=/usr/local \
+                      --enable-jit \
+                      --enable-utf8 \
+                      --enable-unicode-properties \
+                      --enable-static \
+                      --disable-shared
+          make -j$(nproc)
+          sudo make install
 
       - name: Download and compile LuaJIT
         if: steps.cache-deps.outputs.cache-hit != 'true'
