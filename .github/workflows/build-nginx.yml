@@ -73,6 +73,7 @@ jobs:
         run: |
           cd /tmp
           wget https://github.com/madler/zlib/releases/download/v${ZLIB_VERSION}/zlib-${ZLIB_VERSION}.tar.gz
+          tar xzf zlib-${ZLIB_VERSION}.tar.gz
           cd zlib-${ZLIB_VERSION}
           ./configure
           make -j$(proc)
