@@ -5,22 +5,41 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
-
-env:
-  NGINX_VERSION: 1.27.4
-  LUAJIT_VERSION: 2.1-20231117
-  LUA_NGINX_MODULE_VERSION: 0.10.25
-  LUAJIT_LIB: /usr/local/lib
-  LUAJIT_INC: /usr/local/include/luajit-2.1
-  OPENSSL_VERSION: 3.0.12
-  ZLIB_VERSION: 1.3.1
-  PCRE_VERSION: 8.45
+  release:
+    types: [ published ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+
+      - name: Load env file
+        id: dotenv
+        run: |
+          if [ ! -f .env ]; then
+            echo "Error: .env file not found!"
+            exit 1
+          fi
+          
+          echo "Loading .env file..."
+          while IFS= read -r line || [ -n "$line" ]; do
+            if [[ $line != \#* ]] && [[ -n $line ]]; then
+              echo "$line" >> $GITHUB_ENV
+              echo "Loaded: $line"
+            fi
+          done < .env
+
+      - name: Verify env variables
+        run: |
+          echo "NGINX_VERSION: ${{ env.NGINX_VERSION }}"
+          echo "LUAJIT_VERSION: ${{ env.LUAJIT_VERSION }}"
+          echo "LUA_NGINX_MODULE_VERSION: ${{ env.LUA_NGINX_MODULE_VERSION }}"
+          echo "OPENSSL_VERSION: ${{ env.OPENSSL_VERSION }}"
+          echo "PCRE_VERSION: ${{ env.PCRE_VERSION }}"
+          echo "ZLIB_VERSION: ${{ env.ZLIB_VERSION }}"
+          echo "LUAJIT_LIB": ${{ env.LUAJIT_LIB}}
+          echo "LUAJIT_INC": ${{ env.LUAJIT_INC }}
 
       - name: Cache dependencies
         id: cache-deps
@@ -96,7 +115,7 @@ jobs:
           tar xzf zlib-${ZLIB_VERSION}.tar.gz
           cd zlib-${ZLIB_VERSION}
           ./configure --prefix=/usr/local --static
-          make -j$(proc)
+          make -j$(nproc)
           sudo make install
 
 
@@ -178,7 +197,7 @@ jobs:
             --build="nginx-lua-${NGINX_VERSION}" \
             --with-pcre=/tmp/pcre-${PCRE_VERSION} \
             --with-debug
-          make -j1 V=s
+          make -j$(nproc)
 
       - name: Create release package
         run: |
@@ -186,13 +205,20 @@ jobs:
           strip objs/nginx
           mkdir -p release/
           cp objs/nginx release/
-          tar czf nginx-lua-static-${{ github.ref_name }}.tar.gz -C release .
+          tar czf nginx${{ github.ref_name }}.tar.gz -C release .
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            /tmp/nginx-${NGINX_VERSION}/nginx-lua-static-${{ github.ref_name }}.tar.gz
+            /tmp/nginx-${NGINX_VERSION}/nginx-${{ github.ref_name }}.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload files to Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: nginx-${{ github.ref_name }}.tar.gz
+          path: |
+            /tmp/nginx-${NGINX_VERSION}/nginx-${{ github.ref_name }}.tar.gz
