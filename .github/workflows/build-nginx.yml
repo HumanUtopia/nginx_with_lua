@@ -34,6 +34,12 @@ jobs:
           sudo make install
           sudo ln -sf luajit-2.1.0-beta3 /usr/local/bin/luajit
 
+      - name: Download and extract OpenSSL
+        run: |
+          cd /tmp
+          wget https://www.openssl.org/source/openssl-3.0.12.tar.gz
+          tar xzf openssl-3.0.12.tar.gz
+          
       - name: Download and extract Nginx
         run: |
           cd /tmp
