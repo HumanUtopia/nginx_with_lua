@@ -12,6 +12,7 @@ env:
   LUA_NGINX_MODULE_VERSION: 0.10.25
   LUAJIT_LIB: /usr/local/lib
   LUAJIT_INC: /usr/local/include/luajit-2.1
+  OPENSSL_VERSION: 3.0.12
 
 jobs:
   build:
