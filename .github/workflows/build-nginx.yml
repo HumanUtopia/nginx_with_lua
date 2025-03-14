@@ -14,6 +14,7 @@ env:
   LUAJIT_INC: /usr/local/include/luajit-2.1
   OPENSSL_VERSION: 3.0.12
   ZLIB_VERSION: 1.3.1
+  PCRE_VERSION: 8.45
 
 jobs:
   build:
@@ -30,9 +31,12 @@ jobs:
             /tmp/luajit2-${{ env.LUAJIT_VERSION }}
             /tmp/lua-nginx-module-${{ env.LUA_NGINX_MODULE_VERSION }}
             /tmp/nginx-${{ env.NGINX_VERSION }}
+            /tmp/pcre-${{ env.PCRE_VERSION }}
+            /tmp/libz-${{ env.ZLIB_VERSION }}
             /usr/local/openssl
             /usr/local/lib/libluajit*
             /usr/local/include/luajit-2.1
+            /usr/local/lib/libpcre*
           key: ${{ runner.os }}-deps-${{ env.NGINX_VERSION }}-${{ env.LUAJIT_VERSION }}-${{ env.LUA_NGINX_MODULE_VERSION }}-${{ env.OPENSSL_VERSION }}
 
       - name: Install dependencies
@@ -40,6 +44,22 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential libpcre3-dev zlib1g-dev libssl-dev wget git
+
+          - name: Download and compile PCRE
+          if: steps.cache-deps.outputs.cache-hit != 'true'
+          run: |
+            cd /tmp
+            wget https://sourceforge.net/projects/pcre/files/pcre/${PCRE_VERSION}/pcre-${PCRE_VERSION}.tar.gz
+            tar xzf pcre-${PCRE_VERSION}.tar.gz
+            cd pcre-${PCRE_VERSION}
+            ./configure --prefix=/usr/local \
+                       --enable-jit \
+                       --enable-utf8 \
+                       --enable-unicode-properties \
+                       --enable-static \
+                       --disable-shared
+            make -j$(nproc)
+            sudo make install
 
       - name: Download and compile LuaJIT
         if: steps.cache-deps.outputs.cache-hit != 'true'
@@ -75,8 +95,9 @@ jobs:
           wget https://github.com/madler/zlib/releases/download/v${ZLIB_VERSION}/zlib-${ZLIB_VERSION}.tar.gz
           tar xzf zlib-${ZLIB_VERSION}.tar.gz
           cd zlib-${ZLIB_VERSION}
-          ./configure
+          ./configure --prefix=/usr/local --static
           make -j$(proc)
+          sudo make install
 
 
       - name: Download and extract Nginx
@@ -92,6 +113,14 @@ jobs:
           cd /tmp
           wget https://github.com/openresty/lua-nginx-module/archive/refs/tags/v${LUA_NGINX_MODULE_VERSION}.tar.gz
           tar xzf v${LUA_NGINX_MODULE_VERSION}.tar.gz
+
+      - name: Restore permissions
+        run: |
+          sudo chown -R $USER:$USER /usr/local/openssl
+          sudo chown -R $USER:$USER /usr/local/lib/libluajit*
+          sudo chown -R $USER:$USER /usr/local/include/luajit-2.1
+          sudo chown -R $USER:$USER /usr/local/lib/libpcre*
+          sudo chown -R $USER:$USER /usr/local/lib/libz*
 
       - name: Configure and Build Nginx
         run: |
@@ -147,6 +176,7 @@ jobs:
             --with-pcre \
             --with-zlib=/tmp/zlib-${ZLIB_VERSION} \
             --build="nginx-lua-${NGINX_VERSION}" \
+            --with-pcre=/tmp/pcre-${PCRE_VERSION} \
             --with-debug
           make -j1 V=s
 
