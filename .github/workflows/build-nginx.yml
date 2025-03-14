@@ -117,7 +117,7 @@ jobs:
             --with-zlib=/usr/include \
             --build="nginx-lua-${NGINX_VERSION}" \
             --with-debug
-          make -j$(nproc)
+          make -j1 V=s
 
       - name: Create release package
         run: |
