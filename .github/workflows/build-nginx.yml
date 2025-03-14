@@ -13,6 +13,7 @@ env:
   LUAJIT_LIB: /usr/local/lib
   LUAJIT_INC: /usr/local/include/luajit-2.1
   OPENSSL_VERSION: 3.0.12
+  ZLIB: 1.3.1
 
 jobs:
   build:
@@ -20,12 +21,28 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Cache dependencies
+        id: cache-deps
+        uses: actions/cache@v3
+        with:
+          path: |
+            /tmp/openssl-${{ env.OPENSSL_VERSION }}
+            /tmp/luajit2-${{ env.LUAJIT_VERSION }}
+            /tmp/lua-nginx-module-${{ env.LUA_NGINX_MODULE_VERSION }}
+            /tmp/nginx-${{ env.NGINX_VERSION }}
+            /usr/local/openssl
+            /usr/local/lib/libluajit*
+            /usr/local/include/luajit-2.1
+          key: ${{ runner.os }}-deps-${{ env.NGINX_VERSION }}-${{ env.LUAJIT_VERSION }}-${{ env.LUA_NGINX_MODULE_VERSION }}-${{ env.OPENSSL_VERSION }}
+
       - name: Install dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential libpcre3-dev zlib1g-dev libssl-dev wget git
 
       - name: Download and compile LuaJIT
+        if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
           cd /tmp
           wget https://github.com/openresty/luajit2/archive/refs/tags/v${LUAJIT_VERSION}.tar.gz
@@ -36,6 +53,7 @@ jobs:
           sudo ln -sf luajit-2.1.0-beta3 /usr/local/bin/luajit
 
       - name: Download and compile OpenSSL
+        if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
           cd /tmp
           wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
@@ -50,13 +68,25 @@ jobs:
           make -j$(nproc)
           sudo make install_sw
 
+      - name: Download and compile zlib
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          cd /tmp
+          wget https://github.com/madler/zlib/releases/download/v${ZLIB_VERSION}/zlib-${ZLIB_VERSION}.tar.gz
+          cd zlib-${ZLIB_VERSION}
+          ./configure
+          make -j$(proc)
+
+
       - name: Download and extract Nginx
+        if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
           cd /tmp
           wget https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz
           tar xzf nginx-${NGINX_VERSION}.tar.gz
 
       - name: Download Lua-Nginx-Module
+        if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
           cd /tmp
           wget https://github.com/openresty/lua-nginx-module/archive/refs/tags/v${LUA_NGINX_MODULE_VERSION}.tar.gz
@@ -114,7 +144,7 @@ jobs:
             --with-ld-opt='-L/usr/local/openssl/lib -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -pie' \
             --with-openssl=/tmp/openssl-${OPENSSL_VERSION} \
             --with-pcre \
-            --with-zlib=/usr/include \
+            --with-zlib=/tmp/zlib-${ZLIB_VERSION} \
             --build="nginx-lua-${NGINX_VERSION}" \
             --with-debug
           make -j1 V=s
