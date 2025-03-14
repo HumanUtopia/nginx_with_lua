@@ -110,8 +110,8 @@ jobs:
             --with-stream_ssl_module \
             --with-stream_ssl_preread_module \
             --add-module=/tmp/lua-nginx-module-${LUA_NGINX_MODULE_VERSION} \
-            --with-cc-opt='-g -O2 -fstack-protector-strong -Wformat -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 -fPIC' \
-            --with-ld-opt='-Wl,-z,relro -Wl,-z,now -Wl,--as-needed -pie' \
+            --with-cc-opt='-I/usr/local/openssl/include -g -O2 -fstack-protector-strong -Wformat -Werror=format-security' \
+            --with-ld-opt='-L/usr/local/openssl/lib -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -pie' \
             --with-openssl=/tmp/openssl-${OPENSSL_VERSION} \
             --with-pcre \
             --with-zlib=/usr/include \
