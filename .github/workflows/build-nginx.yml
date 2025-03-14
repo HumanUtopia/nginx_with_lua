@@ -34,12 +34,21 @@ jobs:
           sudo make install
           sudo ln -sf luajit-2.1.0-beta3 /usr/local/bin/luajit
 
-      - name: Download and extract OpenSSL
+      - name: Download and compile OpenSSL
         run: |
           cd /tmp
-          wget https://www.openssl.org/source/openssl-3.0.12.tar.gz
-          tar xzf openssl-3.0.12.tar.gz
-          
+          wget https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz
+          tar xzf openssl-${OPENSSL_VERSION}.tar.gz
+          cd openssl-${OPENSSL_VERSION}
+          ./config --prefix=/usr/local/openssl \
+                  --openssldir=/usr/local/openssl \
+                  no-shared \
+                  enable-ssl3 enable-ssl3-method \
+                  enable-tls1_3 \
+                  enable-ec_nistp_64_gcc_128
+          make -j$(nproc)
+          sudo make install_sw
+
       - name: Download and extract Nginx
         run: |
           cd /tmp
@@ -102,7 +111,7 @@ jobs:
             --add-module=/tmp/lua-nginx-module-${LUA_NGINX_MODULE_VERSION} \
             --with-cc-opt='-g -O2 -fstack-protector-strong -Wformat -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 -fPIC' \
             --with-ld-opt='-Wl,-z,relro -Wl,-z,now -Wl,--as-needed -pie' \
-            --with-openssl=/tmp/openssl-3.0.12 \
+            --with-openssl=/tmp/openssl-${OPENSSL_VERSION} \
             --with-pcre \
             --with-zlib=/usr/include \
             --build="nginx-lua-${NGINX_VERSION}" \
