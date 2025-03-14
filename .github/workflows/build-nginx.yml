@@ -98,7 +98,7 @@ jobs:
             --with-ld-opt='-Wl,-z,relro -Wl,-z,now -Wl,--as-needed -pie' \
             --with-openssl=/tmp/openssl-3.0.12 \
             --with-pcre \
-            --with-zlib \
+            --with-zlib=/usr/include \
             --build="nginx-lua-${NGINX_VERSION}" \
             --with-debug
           make -j$(nproc)
