@@ -1,0 +1,121 @@
+name: Build Nginx with Lua
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+env:
+  NGINX_VERSION: 1.27.4
+  LUAJIT_VERSION: 2.1-20231117
+  LUA_NGINX_MODULE_VERSION: 0.10.25
+  LUAJIT_LIB: /usr/local/lib
+  LUAJIT_INC: /usr/local/include/luajit-2.1
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libpcre3-dev zlib1g-dev libssl-dev wget git
+
+      - name: Download and compile LuaJIT
+        run: |
+          cd /tmp
+          wget https://github.com/openresty/luajit2/archive/refs/tags/v${LUAJIT_VERSION}.tar.gz
+          tar xzf v${LUAJIT_VERSION}.tar.gz
+          cd luajit2-${LUAJIT_VERSION}
+          make -j$(nproc)
+          sudo make install
+          sudo ln -sf luajit-2.1.0-beta3 /usr/local/bin/luajit
+
+      - name: Download and extract Nginx
+        run: |
+          cd /tmp
+          wget https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz
+          tar xzf nginx-${NGINX_VERSION}.tar.gz
+
+      - name: Download Lua-Nginx-Module
+        run: |
+          cd /tmp
+          wget https://github.com/openresty/lua-nginx-module/archive/refs/tags/v${LUA_NGINX_MODULE_VERSION}.tar.gz
+          tar xzf v${LUA_NGINX_MODULE_VERSION}.tar.gz
+
+      - name: Configure and Build Nginx
+        run: |
+          cd /tmp/nginx-${NGINX_VERSION}
+          export LUAJIT_LIB=/usr/local/lib
+          export LUAJIT_INC=/usr/local/include/luajit-2.1
+          export LD_LIBRARY_PATH=$LUAJIT_LIB:$LD_LIBRARY_PATH
+          ./configure \
+            --prefix=/etc/nginx \
+            --sbin-path=/usr/sbin/nginx \
+            --modules-path=/usr/lib/nginx/modules \
+            --conf-path=/etc/nginx/nginx.conf \
+            --error-log-path=/var/log/nginx/error.log \
+            --http-log-path=/var/log/nginx/access.log \
+            --pid-path=/var/run/nginx.pid \
+            --lock-path=/var/run/nginx.lock \
+            --http-client-body-temp-path=/var/cache/nginx/client_temp \
+            --http-proxy-temp-path=/var/cache/nginx/proxy_temp \
+            --http-fastcgi-temp-path=/var/cache/nginx/fastcgi_temp \
+            --http-uwsgi-temp-path=/var/cache/nginx/uwsgi_temp \
+            --http-scgi-temp-path=/var/cache/nginx/scgi_temp \
+            --user=nginx \
+            --group=nginx \
+            --with-compat \
+            --with-file-aio \
+            --with-threads \
+            --with-http_addition_module \
+            --with-http_auth_request_module \
+            --with-http_dav_module \
+            --with-http_flv_module \
+            --with-http_gunzip_module \
+            --with-http_gzip_static_module \
+            --with-http_mp4_module \
+            --with-http_random_index_module \
+            --with-http_realip_module \
+            --with-http_secure_link_module \
+            --with-http_slice_module \
+            --with-http_ssl_module \
+            --with-http_stub_status_module \
+            --with-http_sub_module \
+            --with-http_v2_module \
+            --with-http_v3_module \
+            --with-mail \
+            --with-mail_ssl_module \
+            --with-stream \
+            --with-stream_realip_module \
+            --with-stream_ssl_module \
+            --with-stream_ssl_preread_module \
+            --add-module=/tmp/lua-nginx-module-${LUA_NGINX_MODULE_VERSION} \
+            --with-cc-opt='-g -O2 -fstack-protector-strong -Wformat -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 -fPIC' \
+            --with-ld-opt='-Wl,-z,relro -Wl,-z,now -Wl,--as-needed -pie' \
+            --with-openssl=/tmp/openssl-3.0.12 \
+            --with-pcre \
+            --with-zlib \
+            --build="nginx-lua-${NGINX_VERSION}" \
+            --with-debug
+          make -j$(nproc)
+
+      - name: Create release package
+        run: |
+          cd /tmp/nginx-${NGINX_VERSION}
+          strip objs/nginx
+          mkdir -p release/
+          cp objs/nginx release/
+          tar czf nginx-lua-static-${{ github.ref_name }}.tar.gz -C release .
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            /tmp/nginx-${NGINX_VERSION}/nginx-lua-static-${{ github.ref_name }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
