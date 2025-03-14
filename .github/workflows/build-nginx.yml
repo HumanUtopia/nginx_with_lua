@@ -214,7 +214,7 @@ jobs:
           strip objs/nginx
           mkdir -p release/
           cp objs/nginx release/
-          tar czf nginx${{ github.ref_name }}.tar.gz -C release .
+          tar czf nginx-${{ github.ref_name }}.tar.gz -C release .
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
