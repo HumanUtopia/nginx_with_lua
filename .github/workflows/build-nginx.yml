@@ -230,5 +230,5 @@ jobs:
         with:
           name: nginx
           path: |
-            /tmp/nginx-${NGINX_VERSION}/objs/nginx
-            retention-days: 7
+            /tmp/nginx-${{ env.NGINX_VERSION }}/release/nginx
+          retention-days: 7
