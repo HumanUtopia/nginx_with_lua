@@ -72,7 +72,7 @@ jobs:
         if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential libpcre3-dev zlib1g-dev libssl-dev wget git
+          sudo apt-get install -y build-essential libpcre3-dev zlib1g-dev libssl-dev wget git glibc-static
 
       - name: Download and compile PCRE
         if: steps.cache-deps.outputs.cache-hit != 'true'
@@ -199,8 +199,8 @@ jobs:
             --with-stream_ssl_module \
             --with-stream_ssl_preread_module \
             --add-module=/tmp/lua-nginx-module-${LUA_NGINX_MODULE_VERSION} \
-            --with-cc-opt='-I/usr/local/openssl/include -g -O2 -fstack-protector-strong -Wformat -Werror=format-security -static' \
-            --with-ld-opt='-L/usr/local/openssl/lib -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -pie -static' \
+            --with-cc-opt='-static,-I/usr/local/openssl/include -g -O2 -fstack-protector-strong -Wformat -Werror=format-security' \
+            --with-ld-opt='-static,-L/usr/local/openssl/lib -Wl,-z,relro -Wl,-z,now -Wl,--as-needed -pie -static' \
             --with-openssl=/tmp/openssl-${OPENSSL_VERSION} \
             --with-pcre \
             --with-zlib=/tmp/zlib-${ZLIB_VERSION} \
